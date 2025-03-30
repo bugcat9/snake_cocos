@@ -1,4 +1,4 @@
-import { _decorator, Collider2D, Component, Contact2DType, Node, PhysicsSystem2D } from 'cc';
+import { _decorator, Collider2D, Component, Contact2DType, Node, PhysicsSystem, PhysicsSystem2D } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('FoodControl')
