@@ -20,8 +20,6 @@ export class HeadControl extends Component {
 
     @property({ type: Node })
     gameMgr: Node | null = null; // 游戏管理节点
-    // @property(Animation)
-    // anim: Animation | null = null;
 
     @property({ type: [SpriteFrame] })
     headSprites: SpriteFrame[] = []; // 方向对应的图片资源
@@ -32,7 +30,6 @@ export class HeadControl extends Component {
         let collider = this.getComponent(Collider2D);
         if (collider) {
             collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
-            collider.on(Contact2DType.END_CONTACT, this.onEndContact, this);
         }
     }
 
@@ -43,20 +40,6 @@ export class HeadControl extends Component {
             console.log("吃到食物了");
             this.gameMgr?.getComponent(GameControl)?.growSnake();
         }
-    }
-
-    onEndContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
-        // 只在两个碰撞体结束接触时被调用一次
-        console.log('onEndContact');
-    }
-
-    onPreSolve(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
-        // 每次将要处理碰撞体接触逻辑时被调用
-        console.log('onPreSolve');
-    }
-    onPostSolve(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
-        // 每次处理完碰撞体接触逻辑时被调用
-        console.log('onPostSolve');
     }
 
     onKeyDown(event: EventKeyboard) {

@@ -17,10 +17,10 @@ export class FoodControl extends Component {
         if (this.isDead) return;
         this.isDead = true;
         // 碰到食物后，销毁食物节点
-        setTimeout(() => {
-            this.node?.destroy?.();
-        }, 200);
-        console.log("self", self, "other", otherCollider);
+        this.node?.destroy?.();
+        // this.scheduleOnce(() => {
+           
+        // }, 0);
     }
 
     update(deltaTime: number) {
