@@ -184,7 +184,7 @@
     "_priority": 0,
     "_fov": 45,
     "_fovAxis": 0,
-    "_orthoHeight": 388.94502228826155,
+    "_orthoHeight": 449.9092088197147,
     "_near": 0,
     "_far": 1000,
     "_color": {
@@ -500,14 +500,6 @@
     "gameMgr": {
       "__id__": 14
     },
-    "body": {
-      "__uuid__": "0faede95-5b46-4998-b463-5ec77f4ed497",
-      "__expectedType__": "cc.Prefab"
-    },
-    "food": {
-      "__uuid__": "e72a7bb3-524b-462d-9673-54fa48c062ec",
-      "__expectedType__": "cc.Prefab"
-    },
     "headSprites": [
       {
         "__uuid__": "9ea9e9a7-b3c9-4db6-9399-794ff14e0627@a64d7",
@@ -608,42 +600,15 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "snakeHead": {
-      "__id__": 10
-    },
     "food": {
       "__uuid__": "e72a7bb3-524b-462d-9673-54fa48c062ec",
       "__expectedType__": "cc.Prefab"
     },
+    "body": {
+      "__uuid__": "0faede95-5b46-4998-b463-5ec77f4ed497",
+      "__expectedType__": "cc.Prefab"
+    },
     "_id": "97TE7I9jRHbY3IQE7TWSVu"
-  },
-  {
-    "__type__": "cc.RigidBody2D",
-    "_name": "",
-    "_objFlags": 0,
-    "__editorExtras__": {},
-    "node": {
-      "__id__": 10
-    },
-    "_enabled": true,
-    "__prefab": null,
-    "enabledContactListener": true,
-    "bullet": false,
-    "awakeOnLoad": true,
-    "_group": 1,
-    "_type": 1,
-    "_allowSleep": true,
-    "_gravityScale": 1,
-    "_linearDamping": 0,
-    "_angularDamping": 0,
-    "_linearVelocity": {
-      "__type__": "cc.Vec2",
-      "x": 0,
-      "y": 0
-    },
-    "_angularVelocity": 0,
-    "_fixedRotation": false,
-    "_id": "69rQsIUllKuJ9eq64M0Mq5"
   },
   {
     "__type__": "cc.BoxCollider2D",
@@ -668,10 +633,38 @@
     },
     "_size": {
       "__type__": "cc.Size",
-      "width": 24,
-      "height": 24
+      "width": 30,
+      "height": 30
     },
     "_id": "00HLeSylZEX56EoQAkB/Qe"
+  },
+  {
+    "__type__": "cc.RigidBody2D",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 10
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "enabledContactListener": true,
+    "bullet": false,
+    "awakeOnLoad": true,
+    "_group": 4,
+    "_type": 1,
+    "_allowSleep": true,
+    "_gravityScale": 1,
+    "_linearDamping": 0,
+    "_angularDamping": 0,
+    "_linearVelocity": {
+      "__type__": "cc.Vec2",
+      "x": 0,
+      "y": 0
+    },
+    "_angularVelocity": 0,
+    "_fixedRotation": false,
+    "_id": "abSN099gBI175/FynIK480"
   },
   {
     "__type__": "cc.UITransform",

@@ -1,12 +1,13 @@
-import { _decorator, Component, Node, Animation, EventKeyboard, input, Input, KeyCode, Prefab, instantiate, Collider2D, Contact2DType, Vec3, randomRangeInt, Sprite, SpriteFrame } from 'cc';
+import { _decorator, Component, Node, Animation, EventKeyboard, input, Input, KeyCode, Prefab, instantiate, Collider2D, Contact2DType, Vec3, randomRangeInt, Sprite, SpriteFrame, PhysicsSystem2D, PhysicsSystem, IPhysics2DContact } from 'cc';
 import { GameControl } from './GameControl';
+import { GlobalParam } from './GlobalParam';
 const { ccclass, property } = _decorator;
 
 enum Direction {
-    UP,
-    DOWN,
+    RIGHT,
     LEFT,
-    RIGHT
+    UP,
+    DOWN
 }
 
 @ccclass('HeadControl')
@@ -17,36 +18,45 @@ export class HeadControl extends Component {
     private elapsedTime = 0;
     private direction = Direction.RIGHT;
 
-    private gridSize: number = 24; // 网格大小
-    private gameWidth: number = 1280; // 游戏区域宽度（以网格为单位）
-    private gameHeight: number = 720; // 游戏区域高度（以网格为单位）
-
     @property({ type: Node })
     gameMgr: Node | null = null; // 游戏管理节点
     // @property(Animation)
     // anim: Animation | null = null;
 
-    @property(Prefab)
-    body: Prefab;
-    @property(Prefab)
-    food: Prefab;
     @property({ type: [SpriteFrame] })
     headSprites: SpriteFrame[] = []; // 方向对应的图片资源
-    private snakeBody: Node[] = [];
 
     protected onLoad(): void {
+        GlobalParam.getInstance().snakeHead = this.node; // 设置蛇头节点
         input.on(Input.EventType.KEY_DOWN, this.onKeyDown, this);
         let collider = this.getComponent(Collider2D);
         if (collider) {
-            collider.on(Contact2DType.BEGIN_CONTACT, this.growSnake, this);
+            collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
+            collider.on(Contact2DType.END_CONTACT, this.onEndContact, this);
         }
-        const body = instantiate(this.body);
-        const { x, y } = this.node.getPosition();
-        body.setParent(this.node.parent);
-        body.setPosition(x - 24, y);
-        this.snakeBody.push(body);
-        this.node.parent.addChild(body);
-        this.generateFood();
+    }
+
+    onBeginContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
+        // 只在两个碰撞体开始接触时被调用一次
+        console.log('onBeginContact');
+        if (otherCollider.node.name === 'Food') {
+            console.log("吃到食物了");
+            this.gameMgr?.getComponent(GameControl)?.growSnake();
+        }
+    }
+
+    onEndContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
+        // 只在两个碰撞体结束接触时被调用一次
+        console.log('onEndContact');
+    }
+
+    onPreSolve(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
+        // 每次将要处理碰撞体接触逻辑时被调用
+        console.log('onPreSolve');
+    }
+    onPostSolve(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
+        // 每次处理完碰撞体接触逻辑时被调用
+        console.log('onPostSolve');
     }
 
     onKeyDown(event: EventKeyboard) {
@@ -92,11 +102,6 @@ export class HeadControl extends Component {
 
 
     start() {
-        // if (this.anim) {
-        //     this.anim.play('animation'); // 替换为您的动画剪辑名称
-        // }else{
-        //     console.error('Animation component not found on the node.');
-        // }
     }
 
     update(deltaTime: number) {
@@ -113,80 +118,17 @@ export class HeadControl extends Component {
         }
     }
 
-    private growSnake() {
-        let tailNode = this.snakeBody[this.snakeBody.length - 1];
-        let newTailPosition = tailNode.getPosition(); // 需要根据实际情况确定新节的位置
-
-        // 创建新节点并设置其位置
-        const body = instantiate(this.body);
-        body.setParent(this.node.parent);
-        body.setPosition(newTailPosition.x - 24, newTailPosition.y);
-
-        // 将新节点添加到场景和snakeBody数组中
-        this.snakeBody.push(body);
-        this.node.parent.addChild(body);
-
-
-        // 延迟创建新食物节点
-        this.scheduleOnce(() => {
-            this.generateFood();
-        }, 0);
-    }
-
-    checkCollisionWithSnake(position: Vec3): boolean {
-        // 检查蛇头
-        if (this.node && this.node.position.equals(position)) {
-            return true;
-        }
-        // 检查蛇身
-        for (let bodyPart of this.snakeBody) {
-            if (bodyPart.position.equals(position)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    placeFoodAt(position: Vec3) {
-        // 实现放置食物的方法，这取决于您的具体实现
-        // 例如，您可以在这里实例化一个新的Node作为食物，或者更新现有食物节点的位置
-        console.log(`Placing food at position: ${position}`);
-        if (this.food) {
-            const food = instantiate(this.food);
-            food.setPosition(position);
-            food.setParent(this.node.parent);
-        }
-    }
-
-    public generateFood() {
-        let newPosition: Vec3;
-        let isPositionValid = false;
-
-        while (!isPositionValid) {
-            // 随机生成一个新的网格位置
-            const x = randomRangeInt(-this.gameWidth / 2, this.gameWidth / 2);
-            const y = randomRangeInt(-this.gameHeight / 2, this.gameHeight / 2);
-            newPosition = new Vec3(x, y, 0);
-
-            // 检查新位置是否与蛇体碰撞
-            isPositionValid = !this.checkCollisionWithSnake(newPosition);
-        }
-
-        // 假设您有一个方法来创建或移动食物节点到指定位置
-        this.placeFoodAt(newPosition);
-    }
-
     moveSnake(deltaTime: number) {
         // 保存蛇头的当前位置
         const headPosition = this.node.getPosition();
 
         // 更新蛇身的位置（从尾部到头部依次更新）
-        for (let i = this.snakeBody.length - 1; i > 0; i--) {
-            this.snakeBody[i].setPosition(this.snakeBody[i - 1].position);
+        for (let i = GlobalParam.getInstance().snakeBody.length - 1; i > 0; i--) {
+            GlobalParam.getInstance().snakeBody[i].setPosition(GlobalParam.getInstance().snakeBody[i - 1].position);
         }
 
         // 蛇身的第一个部分跟随蛇头的当前位置
-        this.snakeBody[0].setPosition(headPosition);
+        GlobalParam.getInstance().snakeBody[0].setPosition(headPosition);
 
         // 更新蛇头的位置（基于方向和网格大小）
         const gridSize = 24; // 网格大小（像素）
@@ -201,7 +143,6 @@ export class HeadControl extends Component {
         } else if (this.direction === Direction.DOWN) {
             y -= gridSize;
         }
-
         this.node.setPosition(x, y);
     }
 

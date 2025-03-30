@@ -1,4 +1,4 @@
-import { _decorator, Collider2D, Component, Contact2DType, Node } from 'cc';
+import { _decorator, Collider2D, Component, Contact2DType, Node, PhysicsSystem2D } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('FoodControl')
@@ -7,11 +7,13 @@ export class FoodControl extends Component {
     start() {
         let collider = this.getComponent(Collider2D);
         if (collider) {
-            collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
+            collider.on(Contact2DType.END_CONTACT, this.onContactBegin, this);
+        }else{
+            console.error("FoodControl: Collider2D component not found!");
         }
     }
 
-    onBeginContact(selfCollider: Collider2D, otherCollider: Collider2D) {
+    onContactBegin(selfCollider: Collider2D, otherCollider: Collider2D) {
         if (this.isDead) return;
         this.isDead = true;
         // 碰到食物后，销毁食物节点

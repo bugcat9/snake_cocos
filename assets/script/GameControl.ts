@@ -1,24 +1,49 @@
-import { _decorator, Component, Node, Vec3, randomRangeInt, Prefab, instantiate } from 'cc';
+import { _decorator, Component, Node, Vec3, randomRangeInt, Prefab, instantiate, BoxCollider2D, PhysicsSystem } from 'cc';
+import { GlobalParam } from './GlobalParam';
 const { ccclass, property } = _decorator;
 
 @ccclass('GameControl')
 export class GameControl extends Component {
-    @property({ type: Node })
-    snakeHead: Node | null = null; // 蛇头节点
-    gridSize: number = 24; // 网格大小
-    gameWidth: number = 1280; // 游戏区域宽度（以网格为单位）
-    gameHeight: number = 720; // 游戏区域高度（以网格为单位）
 
     @property(Prefab)
     food: Prefab;
 
+    @property(Prefab)
+    body: Prefab;
+
     start() {
-        // this.generateFood();
+        const body = instantiate(this.body);
+        const { x, y } = this.node.getPosition();
+        body.setParent(this.node.parent);
+        body.setPosition(x - 24, y);
+        GlobalParam.getInstance().snakeBody.push(body);
+        this.node.parent.addChild(body);
+        this.generateFood();
     }
 
     update(deltaTime: number) {
 
     }
+
+    public growSnake() {
+        let tailNode = GlobalParam.getInstance().snakeBody[GlobalParam.getInstance().snakeBody.length - 1];
+        let newTailPosition = tailNode.getPosition(); // 需要根据实际情况确定新节的位置
+
+        // 创建新节点并设置其位置
+        const body = instantiate(this.body);
+        body.setParent(this.node.parent);
+        body.setPosition(newTailPosition.x - 24, newTailPosition.y);
+
+        // 将新节点添加到场景和snakeBody数组中
+        GlobalParam.getInstance().snakeBody.push(body);
+        this.node.parent.addChild(body);
+
+        // 延迟创建新食物节点
+        this.scheduleOnce(() => {
+            this.generateFood();
+        }, 0);
+    }
+
 
     public generateFood() {
         let newPosition: Vec3;
@@ -26,41 +51,40 @@ export class GameControl extends Component {
 
         while (!isPositionValid) {
             // 随机生成一个新的网格位置
-            const x = randomRangeInt(-this.gameWidth/2, this.gameWidth/2);
-            const y = randomRangeInt(-this.gameHeight/2, this.gameHeight/2);
+            const x = randomRangeInt(-GlobalParam.getInstance().gameWidth / 2, GlobalParam.getInstance().gameWidth / 2);
+            const y = randomRangeInt(-GlobalParam.getInstance().gameHeight / 2, GlobalParam.getInstance().gameHeight / 2);
             newPosition = new Vec3(x, y, 0);
 
             // 检查新位置是否与蛇体碰撞
             isPositionValid = !this.checkCollisionWithSnake(newPosition);
         }
 
-        // 假设您有一个方法来创建或移动食物节点到指定位置
-        this.placeFoodAt(newPosition);
+        console.log(`Placing food at position: ${newPosition}`);
+        if (this.food) {
+            const newFood = instantiate(this.food);
+            const foodCollider = newFood.getComponent(BoxCollider2D);
+            if (foodCollider) {
+                console.log("Food collider enabled:", foodCollider.enabled);
+            } else {
+                console.error("Food prefab does not have a BoxCollider2D component.");
+            }
+            this.node.addChild(newFood);
+            newFood.setPosition(newPosition);
+        }
     }
 
     checkCollisionWithSnake(position: Vec3): boolean {
         // 检查蛇头
-        if (this.snakeHead && this.snakeHead.position.equals(position)) {
+        if (GlobalParam.getInstance().snakeHead && GlobalParam.getInstance().snakeHead.position.equals(position)) {
             return true;
         }
         // 检查蛇身
-        // for (let bodyPart of this.snakeBody) {
-        //     if (bodyPart.position.equals(position)) {
-        //         return true;
-        //     }
-        // }
-        return false;
-    }
-
-    placeFoodAt(position: Vec3) {
-        // 实现放置食物的方法，这取决于您的具体实现
-        // 例如，您可以在这里实例化一个新的Node作为食物，或者更新现有食物节点的位置
-        console.log(`Placing food at position: ${position}`);
-        if (this.food) {
-            const food = instantiate(this.food);
-            this.node.addChild(food);
-            food.setPosition(position);
+        for (let bodyPart of GlobalParam.getInstance().snakeBody) {
+            if (bodyPart.position.equals(position)) {
+                return true;
+            }
         }
+        return false;
     }
 }
 
