@@ -1,6 +1,7 @@
 import { _decorator, Component, Node, Animation, EventKeyboard, input, Input, KeyCode, Prefab, instantiate, Collider2D, Contact2DType, Vec3, randomRangeInt, Sprite, SpriteFrame, PhysicsSystem2D, PhysicsSystem, IPhysics2DContact } from 'cc';
 import { GameControl } from './GameControl';
 import { GlobalParam } from './GlobalParam';
+import { FoodControl } from './FoodControl';
 const { ccclass, property } = _decorator;
 
 enum Direction {
@@ -38,6 +39,7 @@ export class HeadControl extends Component {
         console.log('onBeginContact');
         if (otherCollider.node.name === 'Food') {
             console.log("吃到食物了");
+            otherCollider.getComponent(FoodControl).die();
             this.gameMgr?.getComponent(GameControl)?.growSnake();
         }
     }
