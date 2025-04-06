@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, randomRangeInt, Prefab, instantiate, BoxCollider2D, PhysicsSystem } from 'cc';
+import { _decorator, Component, Node, Vec3, randomRangeInt, Prefab, instantiate, BoxCollider2D, PhysicsSystem, Label } from 'cc';
 import { GlobalParam } from './GlobalParam';
 const { ccclass, property } = _decorator;
 
@@ -11,6 +11,11 @@ export class GameControl extends Component {
     @property(Prefab)
     body: Prefab;
 
+    @property({type: Label})
+    public scoreLabel: Label = null;
+    
+    score: number = 0;
+
     start() {
         const body = instantiate(this.body);
         const { x, y } = this.node.getPosition();
@@ -19,6 +24,7 @@ export class GameControl extends Component {
         GlobalParam.getInstance().snakeBody.push(body);
         this.node.parent.addChild(body);
         this.generateFood();
+        this.scoreLabel.string = 'Score:' + this.score;
     }
 
     update(deltaTime: number) {
@@ -37,6 +43,9 @@ export class GameControl extends Component {
         // 将新节点添加到场景和snakeBody数组中
         GlobalParam.getInstance().snakeBody.push(body);
         this.node.parent.addChild(body);
+        
+        this.score++;
+        this.scoreLabel.string = 'Score:' + this.score;
 
         // 延迟创建新食物节点
         this.scheduleOnce(() => {
@@ -51,8 +60,8 @@ export class GameControl extends Component {
 
         while (!isPositionValid) {
             // 随机生成一个新的网格位置
-            const x = randomRangeInt(-GlobalParam.getInstance().gameWidth / 2, GlobalParam.getInstance().gameWidth / 2);
-            const y = randomRangeInt(-GlobalParam.getInstance().gameHeight / 2, GlobalParam.getInstance().gameHeight / 2);
+            const x = randomRangeInt(-GlobalParam.getInstance().gameWidth / 2 + 50, GlobalParam.getInstance().gameWidth / 2 - 50);
+            const y = randomRangeInt(-GlobalParam.getInstance().gameHeight / 2 + 50, GlobalParam.getInstance().gameHeight / 2 - 50);
             newPosition = new Vec3(x, y, 0);
 
             // 检查新位置是否与蛇体碰撞
