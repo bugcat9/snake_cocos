@@ -1,6 +1,11 @@
-import { _decorator, Component, Node, Vec3, randomRangeInt, Prefab, instantiate, BoxCollider2D, PhysicsSystem, Label } from 'cc';
+import { _decorator, Component, Vec3, randomRangeInt, Prefab, instantiate, BoxCollider2D, Label, JsonAsset } from 'cc';
 import { GlobalParam } from './GlobalParam';
 const { ccclass, property } = _decorator;
+
+interface WordDefinition {
+  word: string;
+  definition: string;
+}
 
 @ccclass('GameControl')
 export class GameControl extends Component {
@@ -14,8 +19,11 @@ export class GameControl extends Component {
     @property({type: Label})
     public scoreLabel: Label = null;
     
+    @property(JsonAsset)
+    wordJson: JsonAsset = null!;
+    
     score: number = 0;
-
+    words:WordDefinition[] = [];
     start() {
         const body = instantiate(this.body);
         const { x, y } = this.node.getPosition();
@@ -25,6 +33,7 @@ export class GameControl extends Component {
         this.node.parent.addChild(body);
         this.generateFood();
         this.scoreLabel.string = 'Score:' + this.score;
+        this.words = this.wordJson.json as WordDefinition[];
     }
 
     update(deltaTime: number) {

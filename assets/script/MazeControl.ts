@@ -18,7 +18,7 @@ export class MazeControl extends Component {
         // Top and bottom walls
         for (let x = -halfSceneWidth; x < halfSceneWidth; x += wallSize) {
             this.placeWall(x, halfSceneHeight - wallSize / 2, wallSize); // Top wall
-            this.placeWall(x, -halfSceneHeight + wallSize / 2, wallSize); // Bottom wall
+            this.placeWall(x, -halfSceneHeight - wallSize, wallSize); // Bottom wall
         }
 
         // Left and right walls

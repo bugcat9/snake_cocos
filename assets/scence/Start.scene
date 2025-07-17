@@ -395,7 +395,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 198.47362439385776,
+      "width": 198.46548565881764,
       "height": 130.39999999999998
     },
     "_anchorPoint": {
@@ -428,7 +428,7 @@
     "_string": "\nSnake\n",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
-    "_actualFontSize": 84.58333333333333,
+    "_actualFontSize": 97.02777777777777,
     "_fontSize": 70,
     "_fontFamily": "Arial",
     "_lineHeight": 40,
@@ -615,7 +615,7 @@
     "_string": "play",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
-    "_actualFontSize": 24.166666666666664,
+    "_actualFontSize": 27.72222222222222,
     "_fontSize": 20,
     "_fontFamily": "Arial",
     "_lineHeight": 40,

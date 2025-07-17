@@ -41,6 +41,8 @@ export class HeadControl extends Component {
             console.log("吃到食物了");
             otherCollider.getComponent(FoodControl).die();
             this.gameMgr?.getComponent(GameControl)?.growSnake();
+        } else if (otherCollider.node.name === 'Maze') {
+            console.log("撞墙了");
         }
     }
 

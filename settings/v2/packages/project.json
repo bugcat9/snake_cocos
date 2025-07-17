@@ -9,12 +9,17 @@
       {
         "index": 2,
         "name": "Head"
+      },
+      {
+        "index": 3,
+        "name": "Maze"
       }
     ],
     "collisionMatrix": {
       "0": 1,
       "1": 4,
-      "2": 2
+      "2": 10,
+      "3": 4
     }
   },
   "custom_joint_texture_layouts": []
