@@ -1,11 +1,13 @@
-import { _decorator, Collider2D, Component, Contact2DType, Node, PhysicsSystem, PhysicsSystem2D, Sprite } from 'cc';
+import { _decorator, Collider2D, Component, Contact2DType, Node, PhysicsSystem, PhysicsSystem2D, resources, Sprite, SpriteAtlas } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('FoodControl')
 export class FoodControl extends Component {
     isDead: boolean = false;
+    word: string = '';
+
     start() {
-        
+
     }
 
     update(deltaTime: number) {
@@ -20,6 +22,15 @@ export class FoodControl extends Component {
         }, 10);
     }
 
+    setSpriteFrame(w: string) {
+        this.word = w;
+        w = 'Apple' + w;
+        const sprite = this.getComponent(Sprite);
+        if (sprite) {
+            resources.load("apple", SpriteAtlas, (err, atlas) => {
+                const frame = atlas.getSpriteFrame(w);
+                sprite.spriteFrame = frame;
+            });
+        }
+    }
 }
-
-

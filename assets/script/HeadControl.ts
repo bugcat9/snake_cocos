@@ -19,6 +19,8 @@ export class HeadControl extends Component {
     private elapsedTime = 0;
     private direction = Direction.RIGHT;
 
+    private isGameover = false; // 游戏是否结束
+
     @property({ type: Node })
     gameMgr: Node | null = null; // 游戏管理节点
 
@@ -32,6 +34,8 @@ export class HeadControl extends Component {
         if (collider) {
             collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
         }
+        this.direction = Direction.RIGHT; // 初始化方向为右
+        this.isGameover = false; // 初始化游戏状态为未结束
     }
 
     onBeginContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
@@ -39,10 +43,16 @@ export class HeadControl extends Component {
         console.log('onBeginContact');
         if (otherCollider.node.name === 'Food') {
             console.log("吃到食物了");
+            let w = otherCollider.getComponent(FoodControl).word;
             otherCollider.getComponent(FoodControl).die();
-            this.gameMgr?.getComponent(GameControl)?.growSnake();
+            this.gameMgr?.getComponent(GameControl)?.headAndFoodContact(w);
+
         } else if (otherCollider.node.name === 'Maze') {
             console.log("撞墙了");
+            if (!this.isGameover) {
+                this.isGameover = true; // 设置游戏结束状态
+                this.gameMgr?.getComponent(GameControl)?.gameover();
+            }
         }
     }
 
