@@ -1,6 +1,7 @@
 import { _decorator, Component, Vec3, randomRangeInt, Prefab, instantiate, BoxCollider2D, Label, JsonAsset, resources, director } from 'cc';
 import { GlobalParam } from './GlobalParam';
 import { FoodControl } from './FoodControl';
+import { AudioMgr } from './AudioMgr';
 const { ccclass, property } = _decorator;
 
 interface WordDefinition {
@@ -53,12 +54,13 @@ export class GameControl extends Component {
 
     public headAndFoodContact(w: string) {
         if (w !== this.words[this.indexInWords - 1].word[this.indexInWord]) {
+            AudioMgr.inst.playOneShot('audio/Die'); // 播放吃食物音效
             console.log("吃到错误的食物，游戏结束");
             this.gameover();
             return;
         }
 
-
+        AudioMgr.inst.playOneShot('audio/Eat'); // 播放吃食物音效
         let tailNode = GlobalParam.getInstance().snakeBody[GlobalParam.getInstance().snakeBody.length - 1];
         let newTailPosition = tailNode.getPosition(); // 需要根据实际情况确定新节的位置
 

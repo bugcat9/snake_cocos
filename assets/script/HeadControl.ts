@@ -2,6 +2,7 @@ import { _decorator, Component, Node, EventKeyboard, input, Input, KeyCode, Coll
 import { GameControl } from './GameControl';
 import { GlobalParam } from './GlobalParam';
 import { FoodControl } from './FoodControl';
+import { AudioMgr } from './AudioMgr';
 const { ccclass, property } = _decorator;
 
 enum Direction {
@@ -46,9 +47,9 @@ export class HeadControl extends Component {
             let w = otherCollider.getComponent(FoodControl).word;
             otherCollider.getComponent(FoodControl).die();
             this.gameMgr?.getComponent(GameControl)?.headAndFoodContact(w);
-
         } else if (otherCollider.node.name === 'Maze') {
             console.log("撞墙了");
+            AudioMgr.inst.playOneShot('audio/Die'); // 播放吃食物音效
             if (!this.isGameover) {
                 this.isGameover = true; // 设置游戏结束状态
                 this.gameMgr?.getComponent(GameControl)?.gameover();
