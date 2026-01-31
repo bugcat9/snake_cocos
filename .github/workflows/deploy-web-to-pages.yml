@@ -1,5 +1,5 @@
 # 将 Cocos Creator Web 端构建产物部署到 GitHub Pages
-# 触发：推送到 main 分支时（若默认分支为 master 请改为 master）
+# 通过推送到 gh-pages 分支部署，不经过 github-pages 环境，避免环境保护规则限制
 
 name: Build Web & Deploy to GitHub Pages
 
@@ -7,33 +7,24 @@ on:
   push:
     branches:
       - main
-      # - master   # 若默认分支是 master 可取消注释
+      # - master   # 若默认分支是 master 请取消注释
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write   # 用于推送到 gh-pages 分支
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # 部署到 GitHub Pages（使用仓库中已有的 build 产物）
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      # Cocos Creator Web 桌面构建默认输出到 build/web-desktop
+      # Cocos Creator Web 构建默认输出到 build/web-desktop 或 build/web-mobile
       - name: Check build output
         id: check-build
         run: |
@@ -48,11 +39,10 @@ jobs:
             exit 1
           fi
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ${{ steps.check-build.outputs.path }}
-
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ${{ steps.check-build.outputs.path }}
+          # 推送到 gh-pages 分支，不经过 github-pages 环境
+          publish_branch: gh-pages

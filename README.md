@@ -62,7 +62,8 @@ assets/
 
 3. **开启 GitHub Pages**
    - 仓库 **Settings** → **Pages** → **Build and deployment**
-   - **Source** 选择 **GitHub Actions**
+   - **Source** 选择 **Deploy from a branch**
+   - **Branch** 选择 **gh-pages**，目录选 **/ (root)**，保存
 
 推送代码后，Actions 会运行并把 `build/web-desktop`（或 `build/web-mobile`）部署到 Pages。若默认分支是 `master`，请把 `.github/workflows/deploy-web-to-pages.yml` 里的 `branches` 改为 `master`。
 
