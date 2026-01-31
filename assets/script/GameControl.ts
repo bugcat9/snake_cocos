@@ -61,13 +61,24 @@ export class GameControl extends Component {
         }
 
         AudioMgr.inst.playOneShot('audio/Eat'); // 播放吃食物音效
-        let tailNode = GlobalParam.getInstance().snakeBody[GlobalParam.getInstance().snakeBody.length - 1];
-        let newTailPosition = tailNode.getPosition(); // 需要根据实际情况确定新节的位置
+        const snakeBody = GlobalParam.getInstance().snakeBody;
+        const tailNode = snakeBody[snakeBody.length - 1];
+        const tailPos = tailNode.getPosition();
+
+        // 新尾节应紧贴当前尾部延伸。方向 = 尾部 - 前驱，保证每节间隔 24px
+        // 1 节身体时：前驱是头；2 节以上时：前驱是倒数第二节
+        const referencePos = snakeBody.length >= 2
+            ? snakeBody[snakeBody.length - 2].getPosition()
+            : GlobalParam.getInstance().snakeHead!.position;
+        const dx = tailPos.x - referencePos.x;
+        const dy = tailPos.y - referencePos.y;
+        const newTailX = tailPos.x + dx;
+        const newTailY = tailPos.y + dy;
 
         // 创建新节点并设置其位置
         const body = instantiate(this.body);
         body.setParent(this.node.parent);
-        body.setPosition(newTailPosition.x - 24, newTailPosition.y);
+        body.setPosition(newTailX, newTailY);
 
         // 将新节点添加到场景和snakeBody数组中
         GlobalParam.getInstance().snakeBody.push(body);
@@ -86,48 +97,96 @@ export class GameControl extends Component {
     }
 
 
+    /**
+     * 将世界坐标转换为网格坐标（网格大小为 gridSize）
+     */
+    private worldToGrid(x: number, y: number): { gx: number, gy: number } {
+        const gridSize = GlobalParam.getInstance().gridSize;
+        const gx = Math.round(x / gridSize);
+        const gy = Math.round(y / gridSize);
+        return { gx, gy };
+    }
+
+    /**
+     * 将网格坐标转换为世界坐标（网格中心点）
+     */
+    private gridToWorld(gx: number, gy: number): Vec3 {
+        const gridSize = GlobalParam.getInstance().gridSize;
+        return new Vec3(gx * gridSize, gy * gridSize, 0);
+    }
+
+    /**
+     * 获取当前所有已被占用的网格集合（蛇头、蛇身、已有食物）
+     */
+    private getOccupiedGridSet(): Set<string> {
+        const occupied = new Set<string>();
+        const gridSize = GlobalParam.getInstance().gridSize;
+
+        // 添加蛇头
+        if (GlobalParam.getInstance().snakeHead) {
+            const pos = GlobalParam.getInstance().snakeHead.position;
+            const { gx, gy } = this.worldToGrid(pos.x, pos.y);
+            occupied.add(`${gx},${gy}`);
+        }
+
+        // 添加蛇身
+        for (const bodyPart of GlobalParam.getInstance().snakeBody) {
+            const pos = bodyPart.position;
+            const { gx, gy } = this.worldToGrid(pos.x, pos.y);
+            occupied.add(`${gx},${gy}`);
+        }
+
+        return occupied;
+    }
+
+    /**
+     * 获取游戏区域内所有可用的网格位置（对齐网格，排除边界）
+     */
+    private getAvailableGridPositions(excludeGrids: Set<string>): { gx: number, gy: number }[] {
+        const gridSize = GlobalParam.getInstance().gridSize;
+        const margin = 50; // 距离边界的留白
+        const halfWidth = GlobalParam.getInstance().gameWidth / 2;
+        const halfHeight = GlobalParam.getInstance().gameHeight / 2;
+
+        // 计算网格索引范围（与蛇的移动网格一致）
+        const minGx = Math.ceil((-halfWidth + margin) / gridSize);
+        const maxGx = Math.floor((halfWidth - margin) / gridSize);
+        const minGy = Math.ceil((-halfHeight + margin) / gridSize);
+        const maxGy = Math.floor((halfHeight - margin) / gridSize);
+
+        const available: { gx: number, gy: number }[] = [];
+        for (let gx = minGx; gx <= maxGx; gx++) {
+            for (let gy = minGy; gy <= maxGy; gy++) {
+                const key = `${gx},${gy}`;
+                if (!excludeGrids.has(key)) {
+                    available.push({ gx, gy });
+                }
+            }
+        }
+        return available;
+    }
+
     public generateFood() {
         let word = this.words[this.indexInWords].word;
         this.wordLabel.string = this.words[this.indexInWords].word + ' - ' + this.words[this.indexInWords].definition;
         this.indexInWord = 0; // 重置单词索引
 
-        const minDistance = 50; // 设定最小间隔距离
-        const placedPositions: Vec3[] = []; // 已放置食物的位置
+        // 基于网格的占用集合，保证食物与蛇身、食物之间永不重叠
+        const occupiedGrids = this.getOccupiedGridSet();
 
         for (const char of word) {
-            let newPosition: Vec3;
-            let isPositionValid = false;
+            const available = this.getAvailableGridPositions(occupiedGrids);
 
-            const maxTries = 100; // 最大尝试次数，防止死循环
-            let tries = 0;
-
-            while (!isPositionValid && tries < maxTries) {
-                // 随机生成一个新的网格位置
-                const x = randomRangeInt(-GlobalParam.getInstance().gameWidth / 2 + 50, GlobalParam.getInstance().gameWidth / 2 - 50);
-                const y = randomRangeInt(-GlobalParam.getInstance().gameHeight / 2 + 50, GlobalParam.getInstance().gameHeight / 2 - 50);
-                newPosition = new Vec3(x, y, 0);
-
-                // 检查新位置是否与蛇体碰撞以及与其他食物的距离
-                if (!this.checkCollisionWithSnake(newPosition)) {
-                    let distanceOk = true;
-                    for (const pos of placedPositions) {
-                        if (Vec3.distance(pos, newPosition) < minDistance) {
-                            distanceOk = false;
-                            break;
-                        }
-                    }
-
-                    isPositionValid = distanceOk;
-                }
-                tries++;
-            }
-
-            if (!isPositionValid) {
-                console.warn("无法找到有效位置放置食物");
+            if (available.length === 0) {
+                console.warn("没有足够空间放置食物，跳过该字符:", char);
                 continue;
             }
 
-            console.log(`Placing food at position: ${newPosition}`);
+            // 随机选取一个可用网格
+            const idx = randomRangeInt(0, available.length);
+            const { gx, gy } = available[idx];
+            const newPosition = this.gridToWorld(gx, gy);
+
             if (this.food) {
                 const newFood = instantiate(this.food);
                 this.node.addChild(newFood);
@@ -135,29 +194,14 @@ export class GameControl extends Component {
                 const foodComponent = newFood.getComponent(FoodControl);
 
                 if (foodComponent) {
-                    // 调用你定义的方法
                     foodComponent.setSpriteFrame(char);
                 }
 
-                // 记录已放置的食物位置
-                placedPositions.push(newPosition.clone());
+                // 将新食物位置加入占用集合，避免同一单词内多个食物重叠
+                occupiedGrids.add(`${gx},${gy}`);
             }
         }
         this.indexInWords = (this.indexInWords + 1) % this.words.length; // 循环使用单词列表
-    }
-
-    checkCollisionWithSnake(position: Vec3): boolean {
-        // 检查蛇头
-        if (GlobalParam.getInstance().snakeHead && GlobalParam.getInstance().snakeHead.position.equals(position)) {
-            return true;
-        }
-        // 检查蛇身
-        for (let bodyPart of GlobalParam.getInstance().snakeBody) {
-            if (bodyPart.position.equals(position)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public gameover() {
