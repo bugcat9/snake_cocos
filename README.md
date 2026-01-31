@@ -45,6 +45,27 @@ assets/
 - TypeScript
 - 2D 物理引擎（碰撞检测）
 
+## GitHub Pages 部署
+
+项目已配置 GitHub Actions：推送到 `main` 分支后，会自动将 Web 端构建产物部署到 GitHub Pages。
+
+### 使用步骤
+
+1. **在本地构建 Web 端**
+   - 用 Cocos Creator 打开项目 → **项目** → **构建发布**
+   - 选择 **Web 桌面** 或 **Web 手机**，点击构建
+   - 构建产物在 `build/web-desktop` 或 `build/web-mobile`
+
+2. **让仓库包含构建产物（二选一）**
+   - **方式 A**：在 `.gitignore` 中取消忽略 `build/`（或只保留 `build/web-desktop` 不被忽略），然后提交并推送 `build` 目录
+   - **方式 B**：使用带 Cocos Creator 的自托管 Runner，在 workflow 中增加「命令行构建」步骤，则无需提交 build 目录
+
+3. **开启 GitHub Pages**
+   - 仓库 **Settings** → **Pages** → **Build and deployment**
+   - **Source** 选择 **GitHub Actions**
+
+推送代码后，Actions 会运行并把 `build/web-desktop`（或 `build/web-mobile`）部署到 Pages。若默认分支是 `master`，请把 `.github/workflows/deploy-web-to-pages.yml` 里的 `branches` 改为 `master`。
+
 ## 词库
 
 单词数据存放在 `assets/resources/word.json`，可自行编辑以添加或修改词汇。

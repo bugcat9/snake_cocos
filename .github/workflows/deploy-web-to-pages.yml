@@ -1,0 +1,58 @@
+# 将 Cocos Creator Web 端构建产物部署到 GitHub Pages
+# 触发：推送到 main 分支时（若默认分支为 master 请改为 master）
+
+name: Build Web & Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      # - master   # 若默认分支是 master 可取消注释
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # 部署到 GitHub Pages（使用仓库中已有的 build 产物）
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # Cocos Creator Web 桌面构建默认输出到 build/web-desktop
+      - name: Check build output
+        id: check-build
+        run: |
+          if [ -d "build/web-desktop" ]; then
+            echo "path=build/web-desktop" >> $GITHUB_OUTPUT
+            echo "Using build/web-desktop"
+          elif [ -d "build/web-mobile" ]; then
+            echo "path=build/web-mobile" >> $GITHUB_OUTPUT
+            echo "Using build/web-mobile"
+          else
+            echo "::error::未找到 build/web-desktop 或 build/web-mobile。请先在本地用 Cocos Creator 构建 Web 端并提交 build 目录，参见 README「GitHub Pages 部署」说明。"
+            exit 1
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ steps.check-build.outputs.path }}
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
