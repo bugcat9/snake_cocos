@@ -1,5 +1,4 @@
 import { _decorator, Animation, Collider2D, Component, Contact2DType, EventKeyboard, IPhysics2DContact, Input, KeyCode, Node, input } from 'cc';
-import { AudioMgr } from './AudioMgr';
 import { FoodControl } from './FoodControl';
 import { GameControl } from './GameControl';
 import { GlobalParam } from './GlobalParam';
@@ -18,7 +17,7 @@ export class HeadControl extends Component {
     private readonly moveInterval = 0.5;
     private elapsedTime = 0;
     private direction = Direction.RIGHT;
-    private isGameover = false;
+    private queuedDirection: Direction | null = null;
     private animationComponent: Animation | null = null;
     private collider: Collider2D | null = null;
     private gameControl: GameControl | null = null;
@@ -27,6 +26,9 @@ export class HeadControl extends Component {
     gameMgr: Node | null = null;
 
     protected onLoad(): void {
+        this.elapsedTime = 0;
+        this.direction = Direction.RIGHT;
+        this.queuedDirection = null;
         GlobalParam.getInstance().snakeHead = this.node;
         this.gameControl = this.gameMgr?.getComponent(GameControl) ?? null;
         this.animationComponent = this.node.getComponent(Animation);
@@ -49,7 +51,7 @@ export class HeadControl extends Component {
     }
 
     update(deltaTime: number) {
-        if (this.isGameover) {
+        if (!this.gameControl?.isPlaying()) {
             return;
         }
 
@@ -61,7 +63,7 @@ export class HeadControl extends Component {
     }
 
     onBeginContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
-        if (this.isGameover) {
+        if (!this.gameControl?.canAcceptCollisions()) {
             return;
         }
 
@@ -78,13 +80,15 @@ export class HeadControl extends Component {
         }
 
         if (otherCollider.node.name === 'Maze') {
-            AudioMgr.inst.playOneShot('audio/Die');
-            this.isGameover = true;
-            this.gameControl?.gameover();
+            this.gameControl.handleMazeCollision();
         }
     }
 
     onKeyDown(event: EventKeyboard) {
+        if (!this.gameControl?.isPlaying()) {
+            return;
+        }
+
         switch (event.keyCode) {
             case KeyCode.ARROW_UP:
                 this.tryChangeDirection(Direction.UP, Direction.DOWN);
@@ -105,6 +109,13 @@ export class HeadControl extends Component {
 
     private moveSnake() {
         const globalParam = GlobalParam.getInstance();
+
+        if (this.queuedDirection !== null) {
+            this.direction = this.queuedDirection;
+            this.queuedDirection = null;
+            this.playDirectionAnimation();
+        }
+
         const headPosition = this.node.getPosition();
         const snakeBody = globalParam.snakeBody;
 
@@ -133,12 +144,12 @@ export class HeadControl extends Component {
     }
 
     private tryChangeDirection(nextDirection: Direction, blockedDirection: Direction) {
-        if (this.direction === blockedDirection) {
+        const currentDirection = this.queuedDirection ?? this.direction;
+        if (currentDirection === blockedDirection || currentDirection === nextDirection) {
             return;
         }
 
-        this.direction = nextDirection;
-        this.playDirectionAnimation();
+        this.queuedDirection = nextDirection;
     }
 
     private playDirectionAnimation() {

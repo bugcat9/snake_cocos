@@ -22,6 +22,7 @@ export class GlobalParam {
 
     public resetGame() {
         this.snakeBody = [];
+        this.snakeHead = null;
         this.score = 0;
     }
     // 私有构造函数，防止外部实例化

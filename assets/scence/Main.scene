@@ -419,24 +419,6 @@
     "gameMgr": {
       "__id__": 12
     },
-    "headSprites": [
-      {
-        "__uuid__": "9ea9e9a7-b3c9-4db6-9399-794ff14e0627@a64d7",
-        "__expectedType__": "cc.SpriteFrame"
-      },
-      {
-        "__uuid__": "9ea9e9a7-b3c9-4db6-9399-794ff14e0627@1d30c",
-        "__expectedType__": "cc.SpriteFrame"
-      },
-      {
-        "__uuid__": "9ea9e9a7-b3c9-4db6-9399-794ff14e0627@36fa3",
-        "__expectedType__": "cc.SpriteFrame"
-      },
-      {
-        "__uuid__": "9ea9e9a7-b3c9-4db6-9399-794ff14e0627@09897",
-        "__expectedType__": "cc.SpriteFrame"
-      }
-    ],
     "_id": "444wIdO7xGJop8x7tqMKgG"
   },
   {

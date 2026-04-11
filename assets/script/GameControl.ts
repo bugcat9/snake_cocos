@@ -2,6 +2,7 @@ import { _decorator, Component, JsonAsset, Label, Node, NodePool, Prefab, Vec3, 
 import { AudioMgr } from './AudioMgr';
 import { FoodControl } from './FoodControl';
 import { GlobalParam } from './GlobalParam';
+import { GameState } from './GameState';
 
 const { ccclass, property } = _decorator;
 
@@ -33,11 +34,18 @@ export class GameControl extends Component {
     words: WordDefinition[] = [];
     indexInWords: number = 0;
     indexInWord: number = 0;
+    private state: GameState = GameState.Initializing;
+    private activeWord: WordDefinition | null = null;
     private readonly activeFoodNodes = new Set<Node>();
 
     protected onLoad(): void {
         const globalParam = GlobalParam.getInstance();
         globalParam.resetGame();
+        this.unscheduleAllCallbacks();
+        this.activeWord = null;
+        this.indexInWords = 0;
+        this.indexInWord = 0;
+        this.state = GameState.Initializing;
 
         const body = this.acquireBodyNode();
         const { x, y } = this.node.getPosition();
@@ -46,11 +54,16 @@ export class GameControl extends Component {
         globalParam.snakeBody.push(body);
 
         this.scoreLabel.string = 'Score:' + globalParam.score;
-        this.words = this.wordJson.json as WordDefinition[];
-        this.generateFood();
+        this.words = this.normalizeWords(this.wordJson.json as WordDefinition[]);
+    }
+
+    start() {
+        this.startNextRound();
     }
 
     protected onDestroy(): void {
+        this.state = GameState.Transitioning;
+        this.unscheduleAllCallbacks();
         for (const foodNode of Array.from(this.activeFoodNodes)) {
             this.releaseFoodNode(foodNode);
         }
@@ -65,12 +78,11 @@ export class GameControl extends Component {
     }
 
     public headAndFoodContact(word: string) {
-        const currentWord = this.getCurrentWord();
-        if (!currentWord) {
+        if (!this.canAcceptCollisions() || !this.activeWord) {
             return;
         }
 
-        if (word !== currentWord.word[this.indexInWord]) {
+        if (word !== this.activeWord.word[this.indexInWord]) {
             AudioMgr.inst.playOneShot('audio/Die');
             this.gameover();
             return;
@@ -95,12 +107,30 @@ export class GameControl extends Component {
         this.scoreLabel.string = 'Score:' + globalParam.score;
         this.indexInWord++;
 
-        if (this.indexInWord === currentWord.word.length) {
+        if (this.indexInWord === this.activeWord.word.length) {
             this.indexInWord = 0;
+            this.state = GameState.Transitioning;
             this.scheduleOnce(() => {
-                this.generateFood();
+                this.startNextRound();
             }, 0);
         }
+    }
+
+    public handleMazeCollision() {
+        if (!this.canAcceptCollisions()) {
+            return;
+        }
+
+        AudioMgr.inst.playOneShot('audio/Die');
+        this.gameover();
+    }
+
+    public isPlaying(): boolean {
+        return this.state === GameState.Playing;
+    }
+
+    public canAcceptCollisions(): boolean {
+        return this.state === GameState.Playing;
     }
 
     private worldToGrid(x: number, y: number): { gx: number, gy: number } {
@@ -160,22 +190,67 @@ export class GameControl extends Component {
         return available;
     }
 
-    public generateFood() {
-        if (this.words.length === 0) {
-            console.warn('No words configured in wordJson');
+    public gameover() {
+        if (this.state === GameState.GameOver) {
             return;
         }
 
-        const wordEntry = this.words[this.indexInWords];
-        this.wordLabel.string = `${wordEntry.word} - ${wordEntry.definition}`;
-        this.indexInWord = 0;
+        this.state = GameState.GameOver;
+        this.unscheduleAllCallbacks();
+        this.clearActiveFoods();
+        director.loadScene('GameOver');
+    }
 
+    private startNextRound() {
+        if (this.state === GameState.GameOver) {
+            return;
+        }
+
+        this.clearActiveFoods();
+
+        const wordEntry = this.pickNextPlayableWord();
+        if (!wordEntry) {
+            console.warn('No playable word could be generated with the remaining space.');
+            this.gameover();
+            return;
+        }
+
+        this.activeWord = wordEntry;
+        this.indexInWord = 0;
+        this.wordLabel.string = `${wordEntry.word} - ${wordEntry.definition}`;
+        this.spawnFoodForWord(wordEntry.word);
+        this.state = GameState.Playing;
+    }
+
+    private pickNextPlayableWord(): WordDefinition | null {
+        if (this.words.length === 0) {
+            return null;
+        }
+
+        const availableCount = this.getAvailableGridPositions(this.getOccupiedGridSet()).length;
+        if (availableCount <= 0) {
+            return null;
+        }
+
+        for (let offset = 0; offset < this.words.length; offset++) {
+            const candidateIndex = (this.indexInWords + offset) % this.words.length;
+            const candidate = this.words[candidateIndex];
+            if (candidate.word.length <= availableCount) {
+                this.indexInWords = (candidateIndex + 1) % this.words.length;
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private spawnFoodForWord(word: string) {
         const occupiedGrids = this.getOccupiedGridSet();
-        for (const char of wordEntry.word) {
+        for (const char of word) {
             const available = this.getAvailableGridPositions(occupiedGrids);
             if (available.length === 0) {
                 console.warn(`No space left to place food for: ${char}`);
-                continue;
+                break;
             }
 
             const idx = randomRangeInt(0, available.length);
@@ -183,24 +258,32 @@ export class GameControl extends Component {
             const newFood = this.acquireFoodNode(char);
             this.node.addChild(newFood);
             newFood.setPosition(this.gridToWorld(gx, gy));
-
             occupiedGrids.add(`${gx},${gy}`);
         }
-
-        this.indexInWords = (this.indexInWords + 1) % this.words.length;
     }
 
-    public gameover() {
-        director.loadScene('GameOver');
+    private clearActiveFoods() {
+        for (const foodNode of Array.from(this.activeFoodNodes)) {
+            this.releaseFoodNode(foodNode);
+        }
     }
 
-    private getCurrentWord(): WordDefinition | null {
-        if (this.words.length === 0) {
-            return null;
+    private normalizeWords(rawWords: WordDefinition[]): WordDefinition[] {
+        const normalizedWords: WordDefinition[] = [];
+        const seen = new Set<string>();
+
+        for (const entry of rawWords ?? []) {
+            const word = entry?.word?.trim().toLowerCase();
+            const definition = entry?.definition?.trim();
+            if (!word || !definition || !/^[a-z]+$/.test(word) || seen.has(word)) {
+                continue;
+            }
+
+            seen.add(word);
+            normalizedWords.push({ word, definition });
         }
 
-        const currentIndex = (this.indexInWords - 1 + this.words.length) % this.words.length;
-        return this.words[currentIndex];
+        return normalizedWords;
     }
 
     private acquireFoodNode(word: string): Node {
