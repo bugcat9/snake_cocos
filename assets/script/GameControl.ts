@@ -1,4 +1,4 @@
-import { _decorator, Component, JsonAsset, Label, Prefab, Vec3, director, instantiate, randomRangeInt } from 'cc';
+import { _decorator, Component, JsonAsset, Label, Node, NodePool, Prefab, Vec3, director, instantiate, randomRangeInt } from 'cc';
 import { AudioMgr } from './AudioMgr';
 import { FoodControl } from './FoodControl';
 import { GlobalParam } from './GlobalParam';
@@ -12,6 +12,9 @@ interface WordDefinition {
 
 @ccclass('GameControl')
 export class GameControl extends Component {
+    private static readonly foodPool = new NodePool('FoodControl');
+    private static readonly bodyPool = new NodePool();
+
     @property(Prefab)
     food: Prefab;
 
@@ -30,12 +33,13 @@ export class GameControl extends Component {
     words: WordDefinition[] = [];
     indexInWords: number = 0;
     indexInWord: number = 0;
+    private readonly activeFoodNodes = new Set<Node>();
 
     protected onLoad(): void {
         const globalParam = GlobalParam.getInstance();
         globalParam.resetGame();
 
-        const body = instantiate(this.body);
+        const body = this.acquireBodyNode();
         const { x, y } = this.node.getPosition();
         body.setParent(this.node.parent);
         body.setPosition(x - globalParam.gridSize, y);
@@ -44,6 +48,20 @@ export class GameControl extends Component {
         this.scoreLabel.string = 'Score:' + globalParam.score;
         this.words = this.wordJson.json as WordDefinition[];
         this.generateFood();
+    }
+
+    protected onDestroy(): void {
+        for (const foodNode of Array.from(this.activeFoodNodes)) {
+            this.releaseFoodNode(foodNode);
+        }
+
+        const globalParam = GlobalParam.getInstance();
+        for (const bodyNode of globalParam.snakeBody) {
+            this.releaseBodyNode(bodyNode);
+        }
+
+        globalParam.snakeBody = [];
+        globalParam.snakeHead = null;
     }
 
     public headAndFoodContact(word: string) {
@@ -68,7 +86,7 @@ export class GameControl extends Component {
             ? snakeBody[snakeBody.length - 2].getPosition()
             : globalParam.snakeHead!.position;
 
-        const body = instantiate(this.body);
+        const body = this.acquireBodyNode();
         body.setParent(this.node.parent);
         body.setPosition(tailPos.x + (tailPos.x - referencePos.x), tailPos.y + (tailPos.y - referencePos.y));
         snakeBody.push(body);
@@ -162,14 +180,9 @@ export class GameControl extends Component {
 
             const idx = randomRangeInt(0, available.length);
             const { gx, gy } = available[idx];
-            const newFood = instantiate(this.food);
+            const newFood = this.acquireFoodNode(char);
             this.node.addChild(newFood);
             newFood.setPosition(this.gridToWorld(gx, gy));
-
-            const foodComponent = newFood.getComponent(FoodControl);
-            if (foodComponent) {
-                foodComponent.setSpriteFrame(char);
-            }
 
             occupiedGrids.add(`${gx},${gy}`);
         }
@@ -188,5 +201,47 @@ export class GameControl extends Component {
 
         const currentIndex = (this.indexInWords - 1 + this.words.length) % this.words.length;
         return this.words[currentIndex];
+    }
+
+    private acquireFoodNode(word: string): Node {
+        const foodNode = GameControl.foodPool.get() ?? instantiate(this.food);
+        const foodControl = foodNode.getComponent(FoodControl);
+        if (foodControl) {
+            foodControl.setup(word, () => {
+                this.releaseFoodNode(foodNode);
+            });
+        }
+
+        this.activeFoodNodes.add(foodNode);
+        return foodNode;
+    }
+
+    private releaseFoodNode(foodNode: Node) {
+        if (!foodNode.isValid) {
+            return;
+        }
+
+        const foodControl = foodNode.getComponent(FoodControl);
+        foodControl?.resetForPool();
+        this.activeFoodNodes.delete(foodNode);
+        foodNode.removeFromParent();
+        foodNode.active = false;
+        GameControl.foodPool.put(foodNode);
+    }
+
+    private acquireBodyNode(): Node {
+        const bodyNode = GameControl.bodyPool.get() ?? instantiate(this.body);
+        bodyNode.active = true;
+        return bodyNode;
+    }
+
+    private releaseBodyNode(bodyNode: Node) {
+        if (!bodyNode.isValid) {
+            return;
+        }
+
+        bodyNode.removeFromParent();
+        bodyNode.active = false;
+        GameControl.bodyPool.put(bodyNode);
     }
 }

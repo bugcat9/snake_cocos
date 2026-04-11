@@ -1,4 +1,4 @@
-import { _decorator, Component, resources, Sprite, SpriteAtlas } from 'cc';
+import { _decorator, Collider2D, Component, resources, Sprite, SpriteAtlas } from 'cc';
 const { ccclass } = _decorator;
 
 @ccclass('FoodControl')
@@ -6,9 +6,25 @@ export class FoodControl extends Component {
     private static atlas: SpriteAtlas | null = null;
     private static isLoadingAtlas = false;
     private static pendingAtlasTasks: Array<() => void> = [];
+    private releaseToPool: (() => void) | null = null;
 
     isDead: boolean = false;
     word: string = '';
+
+    setup(word: string, releaseToPool: () => void) {
+        this.unscheduleAllCallbacks();
+        this.isDead = false;
+        this.word = word;
+        this.releaseToPool = releaseToPool;
+        this.node.active = true;
+
+        const collider = this.getComponent(Collider2D);
+        if (collider) {
+            collider.enabled = true;
+        }
+
+        this.setSpriteFrame(word);
+    }
 
     die() {
         if (this.isDead) {
@@ -16,11 +32,21 @@ export class FoodControl extends Component {
         }
 
         this.isDead = true;
+        const collider = this.getComponent(Collider2D);
+        if (collider) {
+            collider.enabled = false;
+        }
+
         this.scheduleOnce(() => {
-            if (this.node.isValid) {
-                this.node.destroy();
-            }
+            this.releaseToPool?.();
         }, 0);
+    }
+
+    resetForPool() {
+        this.unscheduleAllCallbacks();
+        this.isDead = false;
+        this.word = '';
+        this.releaseToPool = null;
     }
 
     setSpriteFrame(word: string) {
