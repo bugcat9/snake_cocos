@@ -1,8 +1,9 @@
-import { _decorator, Component, Node, EventKeyboard, input, Input, KeyCode, Collider2D, Contact2DType, Sprite, SpriteFrame, IPhysics2DContact,Animation } from 'cc';
+import { _decorator, Animation, Collider2D, Component, Contact2DType, EventKeyboard, IPhysics2DContact, Input, KeyCode, Node, input } from 'cc';
+import { AudioMgr } from './AudioMgr';
+import { FoodControl } from './FoodControl';
 import { GameControl } from './GameControl';
 import { GlobalParam } from './GlobalParam';
-import { FoodControl } from './FoodControl';
-import { AudioMgr } from './AudioMgr';
+
 const { ccclass, property } = _decorator;
 
 enum Direction {
@@ -14,119 +15,108 @@ enum Direction {
 
 @ccclass('HeadControl')
 export class HeadControl extends Component {
-
-    private isFlipped = false; // 用于追踪当前是否翻转
-    private flipInterval = 0.5; // 翻转间隔时间，单位秒
+    private readonly moveInterval = 0.5;
     private elapsedTime = 0;
     private direction = Direction.RIGHT;
-
-    private isGameover = false; // 游戏是否结束
+    private isGameover = false;
+    private animationComponent: Animation | null = null;
+    private collider: Collider2D | null = null;
+    private gameControl: GameControl | null = null;
 
     @property({ type: Node })
-    gameMgr: Node | null = null; // 游戏管理节点
-
-    @property({ type: [SpriteFrame] })
-    headSprites: SpriteFrame[] = []; // 方向对应的图片资源
+    gameMgr: Node | null = null;
 
     protected onLoad(): void {
-        GlobalParam.getInstance().snakeHead = this.node; // 设置蛇头节点
+        GlobalParam.getInstance().snakeHead = this.node;
+        this.gameControl = this.gameMgr?.getComponent(GameControl) ?? null;
+        this.animationComponent = this.node.getComponent(Animation);
+
         input.on(Input.EventType.KEY_DOWN, this.onKeyDown, this);
-        let collider = this.getComponent(Collider2D);
-        if (collider) {
-            collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
+
+        this.collider = this.getComponent(Collider2D);
+        if (this.collider) {
+            this.collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
         }
-        this.direction = Direction.RIGHT; // 初始化方向为右
-        this.isGameover = false; // 初始化游戏状态为未结束
+    }
+
+    protected onDestroy(): void {
+        input.off(Input.EventType.KEY_DOWN, this.onKeyDown, this);
+        this.collider?.off(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
+    }
+
+    start() {
+        this.playDirectionAnimation();
+    }
+
+    update(deltaTime: number) {
+        if (this.isGameover) {
+            return;
+        }
+
+        this.elapsedTime += deltaTime;
+        if (this.elapsedTime >= this.moveInterval) {
+            this.elapsedTime -= this.moveInterval;
+            this.moveSnake();
+        }
     }
 
     onBeginContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
-        // 只在两个碰撞体开始接触时被调用一次
-        console.log('onBeginContact');
+        if (this.isGameover) {
+            return;
+        }
+
         if (otherCollider.node.name === 'Food') {
-            console.log("吃到食物了");
-            let w = otherCollider.getComponent(FoodControl).word;
-            otherCollider.getComponent(FoodControl).die();
-            this.gameMgr?.getComponent(GameControl)?.headAndFoodContact(w);
-        } else if (otherCollider.node.name === 'Maze') {
-            console.log("撞墙了");
-            AudioMgr.inst.playOneShot('audio/Die'); // 播放吃食物音效
-            if (!this.isGameover) {
-                this.isGameover = true; // 设置游戏结束状态
-                this.gameMgr?.getComponent(GameControl)?.gameover();
+            const food = otherCollider.getComponent(FoodControl);
+            if (!food) {
+                return;
             }
+
+            const word = food.word;
+            food.die();
+            this.gameControl?.headAndFoodContact(word);
+            return;
+        }
+
+        if (otherCollider.node.name === 'Maze') {
+            AudioMgr.inst.playOneShot('audio/Die');
+            this.isGameover = true;
+            this.gameControl?.gameover();
         }
     }
 
     onKeyDown(event: EventKeyboard) {
         switch (event.keyCode) {
             case KeyCode.ARROW_UP:
-                {
-                    if (this.direction !== Direction.DOWN) {
-                        this.direction = Direction.UP;
-                        this.updateHeadSprite();
-                    }
-                }
+                this.tryChangeDirection(Direction.UP, Direction.DOWN);
                 break;
             case KeyCode.ARROW_DOWN:
-                {
-                    if (this.direction !== Direction.UP) {
-                        this.direction = Direction.DOWN;
-                        this.updateHeadSprite();
-                    }
-                }
+                this.tryChangeDirection(Direction.DOWN, Direction.UP);
                 break;
             case KeyCode.ARROW_LEFT:
-                {
-                    if (this.direction !== Direction.RIGHT) {
-                        this.direction = Direction.LEFT;
-                        this.updateHeadSprite();
-                    }
-                }
+                this.tryChangeDirection(Direction.LEFT, Direction.RIGHT);
                 break;
             case KeyCode.ARROW_RIGHT:
-                {
-                    if (this.direction !== Direction.LEFT) {
-                        this.direction = Direction.RIGHT;
-                        this.updateHeadSprite();
-                    }
-                }
+                this.tryChangeDirection(Direction.RIGHT, Direction.LEFT);
                 break;
             default:
-                // 不处理其他按键
                 break;
         }
-
     }
 
-
-    start() {
-        // 添加 Animation 组件
-        const animationComponent = this.node.getComponent(Animation);
-        animationComponent.play('snakeHeadRight'); // 播放默认动画
-    }
-
-    update(deltaTime: number) {
-        this.elapsedTime += deltaTime;
-        if (this.elapsedTime >= this.flipInterval) {
-            this.elapsedTime = 0; // 重置计时器
-            this.moveSnake(deltaTime);
-        }
-    }
-
-    moveSnake(deltaTime: number) {
-        // 保存蛇头的当前位置
+    private moveSnake() {
+        const globalParam = GlobalParam.getInstance();
         const headPosition = this.node.getPosition();
+        const snakeBody = globalParam.snakeBody;
 
-        // 更新蛇身的位置（从尾部到头部依次更新）
-        for (let i = GlobalParam.getInstance().snakeBody.length - 1; i > 0; i--) {
-            GlobalParam.getInstance().snakeBody[i].setPosition(GlobalParam.getInstance().snakeBody[i - 1].position);
+        for (let i = snakeBody.length - 1; i > 0; i--) {
+            snakeBody[i].setPosition(snakeBody[i - 1].position);
         }
 
-        // 蛇身的第一个部分跟随蛇头的当前位置
-        GlobalParam.getInstance().snakeBody[0].setPosition(headPosition);
+        if (snakeBody.length > 0) {
+            snakeBody[0].setPosition(headPosition);
+        }
 
-        // 更新蛇头的位置（基于方向和网格大小）
-        const gridSize = 24; // 网格大小（像素）
+        const gridSize = globalParam.gridSize;
         let { x, y } = headPosition;
 
         if (this.direction === Direction.RIGHT) {
@@ -138,53 +128,37 @@ export class HeadControl extends Component {
         } else if (this.direction === Direction.DOWN) {
             y -= gridSize;
         }
+
         this.node.setPosition(x, y);
     }
 
+    private tryChangeDirection(nextDirection: Direction, blockedDirection: Direction) {
+        if (this.direction === blockedDirection) {
+            return;
+        }
 
-    updateHeadSprite() {
-        // 根据方向设置图片
+        this.direction = nextDirection;
+        this.playDirectionAnimation();
+    }
+
+    private playDirectionAnimation() {
+        if (!this.animationComponent) {
+            return;
+        }
+
         switch (this.direction) {
             case Direction.RIGHT:
-                {
-                    // 播放动画
-                    const animationComponent = this.node.getComponent(Animation);
-                    if (animationComponent) {
-                        animationComponent.stop();
-                        animationComponent.play('snakeHeadRight');
-                    }
-                }
+                this.animationComponent.play('snakeHeadRight');
                 break;
             case Direction.LEFT:
-                {
-                    // 播放动画
-                    const animationComponent = this.node.getComponent(Animation);
-                    if (animationComponent) {
-                        animationComponent.stop();
-                        animationComponent.play('snakeHeadLeft');
-                    }
-                }
+                this.animationComponent.play('snakeHeadLeft');
                 break;
             case Direction.UP:
-                {
-                    const animationComponent = this.node.getComponent(Animation);
-                    if (animationComponent) {
-                        animationComponent.stop();
-                        animationComponent.play('snakeHeadUP');
-                    }
-                }
+                this.animationComponent.play('snakeHeadUP');
                 break;
             case Direction.DOWN:
-                {
-                    const animationComponent = this.node.getComponent(Animation);
-                    if (animationComponent) {
-                        animationComponent.stop();
-                        animationComponent.play('snakeHeadDown');
-                    }
-                }
+                this.animationComponent.play('snakeHeadDown');
                 break;
         }
     }
 }
-
-
